@@ -62,6 +62,8 @@ def cancel_order(store: Store, payments: FakePayments, order_id: str, buyer_emai
     if now >= store.events[order.event_id].starts_at:
         raise OrderError("event has already started", 409)
     tickets = store.tickets_for_order(order.id)
+    if any(t.holder_email != order.buyer_email for t in tickets):
+        raise OrderError("order has transferred tickets", 409)
     if any(t.checked_in_at is not None for t in tickets):
         raise OrderError("order has checked-in tickets", 409)
 

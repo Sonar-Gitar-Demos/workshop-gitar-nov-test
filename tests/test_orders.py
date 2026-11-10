@@ -35,6 +35,18 @@ def test_cancel_refunds_full_total_and_voids_tickets(client, payments, alice_ord
     assert statuses == {"void"}
 
 
+def test_cannot_cancel_after_a_ticket_is_transferred(client, payments, alice_order):
+    ticket_id = alice_order["ticket_ids"][0]
+    transfer = client.post(f"/tickets/{ticket_id}/transfer", json={"to_email": "bob@example.com"}, headers=ALICE)
+    assert transfer.status_code == 200
+
+    resp = client.post(f"/orders/{alice_order['id']}/cancel", headers=ALICE)
+    assert resp.status_code == 409
+    assert resp.get_json() == {"error": "order has transferred tickets"}
+    assert payments.refunds == []
+    assert next(t for t in held_tickets(client, BOB) if t["id"] == ticket_id)["status"] == "valid"
+
+
 def test_only_the_buyer_can_cancel(client, alice_order):
     resp = client.post(f"/orders/{alice_order['id']}/cancel", headers=BOB)
     assert resp.status_code == 404
